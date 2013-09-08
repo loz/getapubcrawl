@@ -4,8 +4,13 @@ import (
     "github.com/loz/getapubcrawl/pubcrawl"
     "fmt"
     "net/http"
+    "encoding/xml"
     "os"
 )
+
+type Response struct {
+  Sms string
+}
 
 func main() {
     http.HandleFunc("/", handler)
@@ -21,9 +26,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
   pubs := pubcrawl.FindPubs(location)
   fmt.Println("Found: ", pubs)
   route, distance := pubcrawl.FindRoute(pubs)
-  writePretendyXMLStart(w)
-  writeResults(w, location, route, distance)
-  writePretendyXMLEnd(w)
+  sms := stringResults(location, route, distance)
+  response := Response{sms}
+  content, err := xml.MarshalIndent(response, "", "  ")
+  if err == nil {
+    fmt.Fprint(w, string(content))
+  }
 }
 
 func writePretendyXMLStart(w http.ResponseWriter) {
@@ -34,10 +42,12 @@ func writePretendyXMLEnd(w http.ResponseWriter) {
   fmt.Fprint(w, "</Sms></Response>")
 }
 
-func writeResults(w http.ResponseWriter, location string, route []*pubcrawl.Pub, distance float64) {
+func stringResults(location string, route []*pubcrawl.Pub, distance float64) string {
+  results := ""
   for _, pub := range route {
-    fmt.Fprintf(w, "%v, ", pub.Name())
+    results += pub.Name() + ", "
   }
-  fmt.Fprintf(w, "%.1fkm", distance)
+  results += fmt.Sprintf("%.1fkm", distance)
+  return results
 }
 
